@@ -9,3 +9,16 @@ def test_read_root():
     data = response.json()
     assert data["name"] == "SAFIRE Backend"
     assert data["status"] == "running"
+
+def test_health():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+def test_ready():
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "reason": "Readiness dependencies are not yet implemented"
+    }
