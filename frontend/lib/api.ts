@@ -76,6 +76,48 @@ export interface ModelRegistryEntry {
   benchmark_profile?: BenchmarkProfile;
 }
 
+export interface NormalizedRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface EvidenceObject {
+  evidence_id: string;
+  document_id: string;
+  source_hash: string;
+  page_number: number;
+  region: NormalizedRegion;
+  extracted_text: string;
+  confidence: number;
+  evidence_type: 'TEXT_BLOCK' | 'TABLE' | 'STAMP' | 'SIGNATURE' | 'IMAGE' | 'KEY_VALUE';
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface DocumentMetadata {
+  document_id: string;
+  filename: string;
+  file_size_bytes: number;
+  sha256_hash: string;
+  page_count: number;
+  content_type: string;
+  uploaded_at: string;
+}
+
+export interface VerticalSliceV0Response {
+  execution_id: string;
+  document_metadata: DocumentMetadata;
+  evidence_count: number;
+  evidence_objects: EvidenceObject[];
+  retrieval_indexed_count: number;
+  reasoning_summary: string;
+  generated_artifact: Record<string, any>;
+  pipeline_duration_ms: number;
+  completed_at: string;
+}
+
 export async function submitTask(taskType: string, description: string, inputData: Record<string, any> = {}, priority: string = 'MEDIUM'): Promise<TaskExecution> {
   const res = await fetch(`${API_BASE}/v1/tasks`, {
     method: 'POST',
@@ -117,5 +159,27 @@ export async function runBenchmark(modelId: string): Promise<BenchmarkProfile> {
     method: 'POST',
   });
   if (!res.ok) throw new Error(`Benchmark failed for model ${modelId}`);
+  return res.json();
+}
+
+export async function uploadDocument(): Promise<DocumentMetadata> {
+  const res = await fetch(`${API_BASE}/v1/documents/upload`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Document upload failed');
+  return res.json();
+}
+
+export async function getDocumentEvidence(documentId: string): Promise<EvidenceObject[]> {
+  const res = await fetch(`${API_BASE}/v1/documents/${documentId}/evidence`);
+  if (!res.ok) throw new Error(`Failed to fetch evidence for document ${documentId}`);
+  return res.json();
+}
+
+export async function executeVerticalSliceV0(documentId: string): Promise<VerticalSliceV0Response> {
+  const res = await fetch(`${API_BASE}/v1/documents/${documentId}/vertical-slice`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Vertical slice execution failed for ${documentId}`);
   return res.json();
 }

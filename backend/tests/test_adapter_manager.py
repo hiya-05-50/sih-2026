@@ -95,7 +95,7 @@ class TestRemoveAdapter:
 class TestHealthCheckAll:
     def test_empty_when_no_adapters(self):
         _reg, mgr = _make_manager()
-        results = asyncio.get_event_loop().run_until_complete(
+        results = asyncio.run(
             mgr.health_check_all()
         )
         assert results == {}
@@ -106,9 +106,10 @@ class TestHealthCheckAll:
         reg.register(_make_entry(model_id="m2"))
         mgr.get_adapter("m1")
         mgr.get_adapter("m2")
-        results = asyncio.get_event_loop().run_until_complete(
+        results = asyncio.run(
             mgr.health_check_all()
         )
+
         assert len(results) == 2
         assert results["m1"].healthy is True
         assert results["m2"].healthy is True
@@ -117,7 +118,8 @@ class TestHealthCheckAll:
         reg, mgr = _make_manager()
         reg.register(_make_entry(model_id="mx"))
         mgr.get_adapter("mx")
-        results = asyncio.get_event_loop().run_until_complete(
+        results = asyncio.run(
             mgr.health_check_all()
         )
         assert results["mx"].model_id == "mx"
+

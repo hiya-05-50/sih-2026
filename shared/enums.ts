@@ -60,3 +60,15 @@ export const ArtifactStatus = {
 } as const;
 export type ArtifactStatus =
   (typeof ArtifactStatus)[keyof typeof ArtifactStatus];
+
+export const EvidenceType = {
+  TEXT_BLOCK: "TEXT_BLOCK",
+  TABLE: "TABLE",
+  STAMP: "STAMP",
+  SIGNATURE: "SIGNATURE",
+  IMAGE: "IMAGE",
+  KEY_VALUE: "KEY_VALUE",
+} as const;
+export type EvidenceType =
+  (typeof EvidenceType)[keyof typeof EvidenceType];
+

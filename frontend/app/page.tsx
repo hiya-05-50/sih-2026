@@ -6,9 +6,15 @@ import {
   listTasks,
   listModels,
   runBenchmark,
+  uploadDocument,
+  getDocumentEvidence,
+  executeVerticalSliceV0,
   TaskExecution,
   ModelRegistryEntry,
   RouteCandidate,
+  EvidenceObject,
+  DocumentMetadata,
+  VerticalSliceV0Response,
 } from '../lib/api';
 
 const TASK_PRESETS = [
@@ -47,8 +53,8 @@ const TASK_PRESETS = [
 ];
 
 export default function WorkbenchPage() {
-  const [activeTab, setActiveTab] = useState<'workbench' | 'registry' | 'history'>('workbench');
-  
+  const [activeTab, setActiveTab] = useState<'workbench' | 'evidence' | 'registry' | 'history'>('workbench');
+
   // Form state
   const [taskType, setTaskType] = useState('document_analysis');
   const [description, setDescription] = useState(TASK_PRESETS[0].description);
@@ -62,6 +68,14 @@ export default function WorkbenchPage() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [benchmarkingModel, setBenchmarkingModel] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Sprint 2 Document & Evidence Explorer State
+  const [activeDocument, setActiveDocument] = useState<DocumentMetadata | null>(null);
+  const [evidenceList, setEvidenceList] = useState<EvidenceObject[]>([]);
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [isProcessingDoc, setIsProcessingDoc] = useState<boolean>(false);
+  const [verticalSliceResult, setVerticalSliceResult] = useState<VerticalSliceV0Response | null>(null);
 
   // Load models and task history on mount
   useEffect(() => {
@@ -122,6 +136,63 @@ export default function WorkbenchPage() {
     }
   };
 
+  // Sprint 2 Document Handlers
+  const handleLoadSampleDocument = async () => {
+    setIsProcessingDoc(true);
+    setErrorMsg(null);
+    try {
+      const meta = await uploadDocument();
+      setActiveDocument(meta);
+      const evidence = await getDocumentEvidence(meta.document_id);
+      setEvidenceList(evidence);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Document processing failed');
+    } finally {
+      setIsProcessingDoc(false);
+    }
+  };
+
+  const handleRunVerticalSliceV0 = async () => {
+    setIsProcessingDoc(true);
+    setErrorMsg(null);
+    try {
+      let docId = activeDocument?.document_id;
+      if (!docId) {
+        const meta = await uploadDocument();
+        docId = meta.document_id;
+        setActiveDocument(meta);
+      }
+      const v0Resp = await executeVerticalSliceV0(docId);
+      setVerticalSliceResult(v0Resp);
+      setActiveDocument(v0Resp.document_metadata);
+      setEvidenceList(v0Resp.evidence_objects);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Vertical slice V0 execution failed');
+    } finally {
+      setIsProcessingDoc(false);
+    }
+  };
+
+  const filteredEvidence = evidenceList.filter(ev =>
+    typeFilter === 'ALL' ? true : ev.evidence_type === typeFilter
+  );
+
+  const getRegionBorderColor = (type: string, isSelected: boolean) => {
+    if (isSelected) return 'border-cyan-400 bg-cyan-500/30 ring-2 ring-cyan-400 shadow-cyan-500/50 shadow-lg z-20';
+    switch (type) {
+      case 'TABLE':
+        return 'border-amber-500 bg-amber-500/10 hover:bg-amber-500/20';
+      case 'STAMP':
+        return 'border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20';
+      case 'SIGNATURE':
+        return 'border-purple-500 bg-purple-500/10 hover:bg-purple-500/20';
+      case 'KEY_VALUE':
+        return 'border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20';
+      default:
+        return 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-white">
       {/* Top Navbar */}
@@ -134,7 +205,7 @@ export default function WorkbenchPage() {
             <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
               SAFIRE Workbench
             </h1>
-            <p className="text-xs text-slate-400 font-mono">Sovereign Agentic AI & Model Routing Engine</p>
+            <p className="text-xs text-slate-400 font-mono">Sovereign Agentic AI & Evidence Intelligence Engine</p>
           </div>
         </div>
 
@@ -151,6 +222,22 @@ export default function WorkbenchPage() {
             ⚡ Task Pipeline
           </button>
           <button
+            onClick={() => {
+              setActiveTab('evidence');
+              if (!activeDocument) handleLoadSampleDocument();
+            }}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+              activeTab === 'evidence'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <span>📄 Evidence Explorer & V0</span>
+            <span className="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-mono">
+              Sprint 2
+            </span>
+          </button>
+          <button
             onClick={() => setActiveTab('registry')}
             className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeTab === 'registry'
@@ -158,7 +245,7 @@ export default function WorkbenchPage() {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            🤖 Model Registry ({models.length})
+            🤖 Models ({models.length})
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -168,7 +255,7 @@ export default function WorkbenchPage() {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
             }`}
           >
-            📋 Audit Trail ({tasks.length})
+            📋 Audit ({tasks.length})
           </button>
         </nav>
 
@@ -179,7 +266,7 @@ export default function WorkbenchPage() {
             <span className="text-slate-300">Target hardware: RTX 4060 (8GB VRAM)</span>
           </div>
           <span className="text-slate-600">|</span>
-          <span className="text-cyan-400 font-semibold">Deterministic Router: Active</span>
+          <span className="text-cyan-400 font-semibold">Slice V0: Active</span>
         </div>
       </header>
 
@@ -517,7 +604,255 @@ export default function WorkbenchPage() {
           </div>
         )}
 
-        {/* TAB 2: MODEL REGISTRY & BENCHMARKS */}
+        {/* TAB 2: EVIDENCE EXPLORER & VERTICAL SLICE V0 */}
+        {activeTab === 'evidence' && (
+          <div className="space-y-6">
+            {/* Top Toolbar */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-lg font-bold text-slate-100">Evidence Intelligence Explorer</h2>
+                  <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
+                    Master PRD §16
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Traceable Evidence Objects with SHA-256 source hashing & normalized coordinate bounding boxes
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleLoadSampleDocument}
+                  disabled={isProcessingDoc}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <span>📄 Load Inspection Report</span>
+                </button>
+                <button
+                  onClick={handleRunVerticalSliceV0}
+                  disabled={isProcessingDoc}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-extrabold shadow-lg shadow-cyan-500/20 transition disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {isProcessingDoc ? (
+                    <>
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                      <span>Processing V0 Pipeline...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀 Run Vertical Slice V0</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Document Metadata Bar */}
+            {activeDocument && (
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3 px-4 text-xs font-mono flex flex-wrap items-center justify-between text-slate-300">
+                <div className="flex items-center space-x-3">
+                  <span className="text-cyan-400 font-bold">Document: {activeDocument.filename}</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-slate-400">ID: {activeDocument.document_id}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="text-emerald-400">SHA-256: {activeDocument.sha256_hash.substring(0, 16)}...</span>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-amber-400">Evidence Count: {evidenceList.length} Objects</span>
+                </div>
+              </div>
+            )}
+
+            {/* Vertical Slice V0 Result Card */}
+            {verticalSliceResult && (
+              <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border-2 border-emerald-500/80 rounded-2xl p-5 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">✅</span>
+                    <h3 className="text-base font-extrabold text-emerald-300">
+                      Vertical Slice V0 Pipeline Execution Complete
+                    </h3>
+                  </div>
+                  <span className="text-xs font-mono text-cyan-400 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
+                    Duration: {verticalSliceResult.pipeline_duration_ms.toFixed(1)} ms
+                  </span>
+                </div>
+
+                {/* Pipeline Flow Stepper */}
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-xs font-mono text-center">
+                  <div className="bg-slate-950 p-2 rounded-lg border border-emerald-800/60 text-emerald-300">
+                    1. UPLOAD ✓
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg border border-emerald-800/60 text-emerald-300">
+                    2. OCR/VISION ✓
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg border border-emerald-800/60 text-emerald-300">
+                    3. EVIDENCE ✓ ({verticalSliceResult.evidence_count})
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg border border-emerald-800/60 text-emerald-300">
+                    4. RETRIEVAL ✓ ({verticalSliceResult.retrieval_indexed_count})
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg border border-emerald-800/60 text-emerald-300">
+                    5. REASONING ✓
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg border border-emerald-800/60 text-emerald-300">
+                    6. ARTIFACT ✓
+                  </div>
+                </div>
+
+                <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 leading-relaxed">
+                  <span className="text-slate-400 font-bold">REASONING SUMMARY: </span>
+                  <span className="text-emerald-200">{verticalSliceResult.reasoning_summary}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Split View: Left Document Interactive Layout - Right Evidence Objects List */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left 6 cols: Document Page Canvas */}
+              <div className="lg:col-span-6 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    Document Page 1 Visual Region Canvas
+                  </h3>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    Normalized Bounding Boxes [0.0 - 1.0]
+                  </span>
+                </div>
+
+                {/* Simulated Document Canvas Container */}
+                <div className="relative w-full aspect-[1/1.3] bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-hidden shadow-inner font-mono text-[11px] text-slate-400 select-none">
+                  {/* Subtle document grid lines background */}
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:10%_10%] opacity-20 pointer-events-none" />
+
+                  {/* Render Bounding Box Overlays */}
+                  {filteredEvidence.map(ev => {
+                    const isSelected = selectedEvidenceId === ev.evidence_id;
+                    return (
+                      <div
+                        key={ev.evidence_id}
+                        onClick={() => setSelectedEvidenceId(ev.evidence_id)}
+                        style={{
+                          left: `${ev.region.x * 100}%`,
+                          top: `${ev.region.y * 100}%`,
+                          width: `${ev.region.width * 100}%`,
+                          height: `${ev.region.height * 100}%`,
+                        }}
+                        className={`absolute border-2 rounded-lg p-1.5 transition-all cursor-pointer flex flex-col justify-between ${getRegionBorderColor(
+                          ev.evidence_type,
+                          isSelected
+                        )}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-slate-950/80 rounded border border-slate-700 text-slate-200">
+                            {ev.evidence_type}
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-300 font-extrabold">
+                            {(ev.confidence * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="truncate text-[10px] text-slate-200 font-semibold opacity-90">
+                          {ev.extracted_text.split('\n')[0]}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right 6 cols: Traceable Evidence Objects List */}
+              <div className="lg:col-span-6 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur space-y-4 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      Traceable Evidence Objects ({filteredEvidence.length})
+                    </h3>
+
+                    {/* Type Filter Buttons */}
+                    <div className="flex items-center space-x-1 text-[10px] font-mono">
+                      {['ALL', 'TABLE', 'STAMP', 'SIGNATURE', 'KEY_VALUE'].map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setTypeFilter(f)}
+                          className={`px-2 py-0.5 rounded border transition ${
+                            typeFilter === f
+                              ? 'bg-cyan-950 border-cyan-500 text-cyan-300 font-bold'
+                              : 'border-slate-800 text-slate-400 hover:bg-slate-900'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Evidence Cards List */}
+                  <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                    {filteredEvidence.map(ev => {
+                      const isSelected = selectedEvidenceId === ev.evidence_id;
+                      return (
+                        <div
+                          key={ev.evidence_id}
+                          onClick={() => setSelectedEvidenceId(ev.evidence_id)}
+                          className={`p-4 rounded-xl border transition-all cursor-pointer space-y-2 ${
+                            isSelected
+                              ? 'border-cyan-500 bg-cyan-950/40 ring-1 ring-cyan-500/50 shadow-md'
+                              : 'border-slate-800/80 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/80'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-mono font-bold text-cyan-400">
+                                {ev.evidence_id}
+                              </span>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                                Page {ev.page_number}
+                              </span>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800/80">
+                                {ev.evidence_type}
+                              </span>
+                            </div>
+                            <span className="text-xs font-mono text-emerald-400 font-bold">
+                              Confidence: {(ev.confidence * 100).toFixed(0)}%
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs font-mono text-slate-200 whitespace-pre-wrap leading-relaxed">
+                            {ev.extracted_text}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1">
+                            <span>
+                              BBox: [{ev.region.x.toFixed(2)}, {ev.region.y.toFixed(2)}, {ev.region.width.toFixed(2)}, {ev.region.height.toFixed(2)}]
+                            </span>
+                            <span className="text-slate-400 truncate max-w-[200px]">
+                              SHA-256: {ev.source_hash.substring(0, 12)}...
+                            </span>
+                          </div>
+
+                          {ev.metadata?.vision_rationale && (
+                            <div className="text-[10px] font-mono text-cyan-300 bg-cyan-950/30 p-1.5 rounded border border-cyan-800/50">
+                              🎯 Targeted Vision: {ev.metadata.vision_rationale}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {filteredEvidence.length === 0 && (
+                      <div className="p-8 text-center text-xs font-mono text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                        No Evidence Objects matching filter.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: MODEL REGISTRY & BENCHMARKS */}
         {activeTab === 'registry' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -636,7 +971,7 @@ export default function WorkbenchPage() {
           </div>
         )}
 
-        {/* TAB 3: AUDIT TRAIL HISTORY */}
+        {/* TAB 4: AUDIT TRAIL HISTORY */}
         {activeTab === 'history' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-slate-200">Execution Audit Log</h2>

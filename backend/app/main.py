@@ -15,6 +15,7 @@ from app.api import models as models_api
 from app.api import routing as routing_api
 from app.api import tasks as tasks_api
 from app.api import benchmark as benchmark_api
+from app.api import documents as documents_api
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,8 @@ app.include_router(models_api.router)
 app.include_router(routing_api.router)
 app.include_router(tasks_api.router)
 app.include_router(benchmark_api.router)
+app.include_router(documents_api.router)
+
 
 # ---------------------------------------------------------------------------
 # Baseline operational endpoints
