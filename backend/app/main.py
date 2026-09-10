@@ -11,6 +11,8 @@ from app.services.router import ModelRouter
 from app.services.lifecycle import TaskLifecycleManager
 from app.services.benchmark import BenchmarkRunner
 from app.services.seed import seed_models
+from app.services.tools.registry import ToolRegistry
+from app.services.tools.implementations import register_all_tools
 from app.api import models as models_api
 from app.api import routing as routing_api
 from app.api import tasks as tasks_api
@@ -28,6 +30,10 @@ adapter_manager = AdapterManager(registry)
 model_router = ModelRouter(registry)
 lifecycle_manager = TaskLifecycleManager(registry, model_router, adapter_manager)
 benchmark_runner = BenchmarkRunner(registry, adapter_manager)
+
+# Sprint 3 tools
+tool_registry = ToolRegistry()
+register_all_tools(tool_registry)
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +75,7 @@ models_api.configure(registry, adapter_manager)
 routing_api.configure(model_router)
 tasks_api.configure(lifecycle_manager)
 benchmark_api.configure(benchmark_runner)
+documents_api.configure(adapter_manager, tool_registry)
 
 # Include API routers
 app.include_router(models_api.router)

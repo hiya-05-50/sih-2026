@@ -62,3 +62,22 @@ def get_task(task_id: str) -> TaskExecution:
 def list_tasks() -> list[TaskExecution]:
     """List all task executions."""
     return _get_lifecycle().list_tasks()
+
+from typing import Any
+
+# Stub in-memory store for traces (in reality, this would query a DB or the Agent State logger)
+_trace_store: dict[str, Any] = {}
+
+@router.get("/{task_id}/trace")
+async def get_task_trace(task_id: str) -> dict[str, Any]:
+    """Sprint 3 – Live Execution Trace endpoint.
+    
+    Returns the current execution trace of the agent loop for the given task.
+    """
+    if task_id not in _trace_store:
+        raise HTTPException(status_code=404, detail="Task trace not found")
+        
+    return {
+        "task_id": task_id,
+        "trace": _trace_store[task_id]
+    }

@@ -21,6 +21,10 @@ from app.schemas.evidence import (
 )
 from app.services.document_parser import DocumentParser
 from app.services.retrieval_index import EvidenceRetrievalIndex
+from app.adapters.manager import AdapterManager
+from app.services.tools.registry import ToolRegistry
+from app.services.agent.loop import AgentLoop
+from app.services.agent.state import AgentMessage
 
 router = APIRouter(prefix="/v1/documents", tags=["documents"])
 
@@ -28,6 +32,14 @@ router = APIRouter(prefix="/v1/documents", tags=["documents"])
 parser_instance = DocumentParser()
 retrieval_index_instance = EvidenceRetrievalIndex()
 document_store: dict[str, tuple[DocumentMetadata, bytes]] = {}
+
+_adapter_manager: AdapterManager | None = None
+_tool_registry: ToolRegistry | None = None
+
+def configure(adapter_manager: AdapterManager, tool_registry: ToolRegistry) -> None:
+    global _adapter_manager, _tool_registry
+    _adapter_manager = adapter_manager
+    _tool_registry = tool_registry
 
 # Pre-seed document store with sample document on startup
 _sample_meta, _sample_content = parser_instance.generate_sample_inspection_report("doc-sample-01")
@@ -122,21 +134,38 @@ async def execute_vertical_slice_v0(document_id: str) -> VerticalSliceV0Response
     # Step 2: Retrieval Ingestion
     retrieval_indexed_count = retrieval_index_instance.ingest_batch(parse_resp.evidence_objects)
 
-    # Step 3: Stub Retrieval Query
-    retrieved_evidence = retrieval_index_instance.search_evidence(query="transformer compliance", top_k=3)
+    # Step 3: Agent Loop Execution (replaces stubs)
+    assert _adapter_manager is not None and _tool_registry is not None
+    # Assuming reasoning/coding model is set to some default, we'll pick the first available
+    models = _adapter_manager._registry.list_all()
+    if not models:
+        raise HTTPException(status_code=503, detail="No models registered for agent loop.")
+    
+    # Just picking the first one (in reality, we'd use routing)
+    model_id = models[0].model_id
+    adapter = _adapter_manager.get_adapter(model_id)
+    
+    agent = AgentLoop(task_id=f"task-{document_id}", adapter=adapter, registry=_tool_registry)
+    
+    # Provide the initial prompt based on parsed evidence
+    agent.state.messages.append(AgentMessage(
+        role="user",
+        content=f"Please analyze {len(parse_resp.evidence_objects)} Evidence Objects for source hash {meta.sha256_hash[:12]}. Use your tools."
+    ))
+    
+    await agent.run()
+    
+    # Extract reasoning from agent state
+    reasoning_summary = f"Agent completed in {agent.state.step_count} steps. Tool calls: {agent.state.tool_call_count}."
+    if agent.state.messages:
+        last_msg = agent.state.messages[-1].content
+        reasoning_summary += f" Final thought: {last_msg}"
 
-    # Step 4: Stub Reasoning Analysis
-    reasoning_summary = (
-        f"Vertical Slice V0 Reasoning Engine analyzed {len(parse_resp.evidence_objects)} Evidence Objects "
-        f"for source hash {meta.sha256_hash[:12]}... "
-        f"Verified 100% compliance across transformer core, pressure relays, and ISO-9001 certification stamp."
-    )
-
-    # Step 5: Stub Artifact Generation
+    # Step 4: Artifact Generation
     artifact = {
         "artifact_id": f"art-v0-{uuid.uuid4().hex[:6]}",
         "title": "Substation Delta-4 Inspection Compliance Certificate",
-        "status": "VALIDATED",
+        "status": "VALIDATED" if agent.state.verification_outcome == "PASS" else "PENDING",
         "provenance_hash": meta.sha256_hash,
         "evidence_references": [ev.evidence_id for ev in parse_resp.evidence_objects],
 
