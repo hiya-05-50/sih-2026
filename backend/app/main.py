@@ -1,12 +1,22 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.config import settings
 from app.services.registry import ModelRegistry
 from app.adapters.manager import AdapterManager
 from app.services.router import ModelRouter
+from app.services.lifecycle import TaskLifecycleManager
+from app.services.benchmark import BenchmarkRunner
+from app.services.seed import seed_models
 from app.api import models as models_api
 from app.api import routing as routing_api
+from app.api import tasks as tasks_api
+from app.api import benchmark as benchmark_api
 
-app = FastAPI(title=settings.app_name, version="0.1.0")
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Singletons
@@ -15,18 +25,60 @@ app = FastAPI(title=settings.app_name, version="0.1.0")
 registry = ModelRegistry()
 adapter_manager = AdapterManager(registry)
 model_router = ModelRouter(registry)
+lifecycle_manager = TaskLifecycleManager(registry, model_router, adapter_manager)
+benchmark_runner = BenchmarkRunner(registry, adapter_manager)
 
+
+# ---------------------------------------------------------------------------
+# Lifespan (startup / shutdown)
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: seed models at startup."""
+    count = await seed_models(registry)
+    logger.info("Startup complete: %d model(s) seeded", count)
+    yield
+    logger.info("Shutting down SAFIRE backend")
+
+
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# ---------------------------------------------------------------------------
+# CORS (allow frontend)
+# ---------------------------------------------------------------------------
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------------------
 # Wire singletons into API router modules
+# ---------------------------------------------------------------------------
+
 models_api.configure(registry, adapter_manager)
 routing_api.configure(model_router)
+tasks_api.configure(lifecycle_manager)
+benchmark_api.configure(benchmark_runner)
 
 # Include API routers
 app.include_router(models_api.router)
 app.include_router(routing_api.router)
+app.include_router(tasks_api.router)
+app.include_router(benchmark_api.router)
 
 # ---------------------------------------------------------------------------
 # Baseline operational endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.get("/")
 def read_root():
@@ -35,9 +87,11 @@ def read_root():
         "status": "running"
     }
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get("/ready")
 async def ready(response: Response):
@@ -64,3 +118,4 @@ async def ready(response: Response):
         "models_registered": len(models),
         "models_healthy": healthy_count,
     }
+

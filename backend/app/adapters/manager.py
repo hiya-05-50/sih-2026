@@ -1,23 +1,31 @@
 """Sprint 1 – Adapter Manager.
 
-Maps model IDs to live ModelAdapter instances.  Sprint 1 exclusively
-uses FixtureModelAdapter; concrete inference adapters (Ollama, vLLM)
-will be added in later sprints.
+Maps model IDs to live ModelAdapter instances.  Dispatches between
+OllamaModelAdapter (real inference) and FixtureModelAdapter (testing)
+based on the registry entry's ``runtime`` field.
 """
 
 from __future__ import annotations
+
+import logging
 
 from app.adapters.base import ModelAdapter
 from app.adapters.fixture import FixtureModelAdapter
 from app.schemas.adapter import HealthCheckResponse
 from app.services.registry import ModelRegistry
 
+logger = logging.getLogger(__name__)
+
 
 class AdapterManager:
     """Factory and cache for model adapter instances.
 
     Each registered model gets a lazily-created adapter that is
-    cached for the lifetime of the manager.
+    cached for the lifetime of the manager.  The adapter type is
+    determined by the ``runtime`` field on the registry entry:
+
+    - ``"ollama"`` → ``OllamaModelAdapter`` (real local inference)
+    - ``"fixture"`` / ``None`` → ``FixtureModelAdapter`` (deterministic)
 
     Args:
         registry: The model registry to look up entries from.
@@ -48,8 +56,20 @@ class AdapterManager:
         if entry is None:
             return None
 
-        # Sprint 1: all models use the FixtureModelAdapter.
-        adapter = FixtureModelAdapter(registry_entry=entry)
+        # Dispatch based on runtime field
+        runtime = (entry.runtime or "fixture").lower()
+        if runtime == "ollama":
+            # Lazy import to avoid import errors when httpx isn't needed
+            from app.adapters.ollama import OllamaModelAdapter
+            adapter: ModelAdapter = OllamaModelAdapter(registry_entry=entry)
+            logger.info(
+                "Created OllamaModelAdapter for '%s' (model: %s)",
+                model_id, entry.ollama_model,
+            )
+        else:
+            adapter = FixtureModelAdapter(registry_entry=entry)
+            logger.debug("Created FixtureModelAdapter for '%s'", model_id)
+
         self._adapters[model_id] = adapter
         return adapter
 

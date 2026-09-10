@@ -32,10 +32,11 @@ from shared.enums import ModelCapability
 
 
 class BenchmarkProfile(BaseModel):
-    """Structured placeholder for benchmark results.
+    """Benchmark measurement results.
 
     All fields are optional because actual measurements are collected
-    during Sprint 1 model-benchmarking work.
+    during Sprint 1 model-benchmarking work.  Once measured, only
+    real numbers go here — never estimated values.
     """
 
     accuracy: Optional[float] = Field(
@@ -52,6 +53,25 @@ class BenchmarkProfile(BaseModel):
     )
     notes: Optional[str] = Field(
         None, description="Free-form notes about the benchmark run"
+    )
+    # Sprint 1 measurement fields
+    cold_start_latency_ms: Optional[float] = Field(
+        None, description="Time from model load request to first token (cold)"
+    )
+    warm_inference_latency_ms: Optional[float] = Field(
+        None, description="Mean latency of consecutive warm requests"
+    )
+    model_load_time_ms: Optional[float] = Field(
+        None, description="Time to load model weights into VRAM"
+    )
+    model_switch_latency_ms: Optional[float] = Field(
+        None, description="Time to unload one model and load another"
+    )
+    vram_usage_mb: Optional[float] = Field(
+        None, description="Measured VRAM usage when model is loaded"
+    )
+    measured_at: Optional[str] = Field(
+        None, description="ISO-8601 timestamp of when measurements were taken"
     )
 
 
@@ -96,4 +116,12 @@ class ModelRegistryEntry(BaseModel):
     benchmark_profile: Optional[BenchmarkProfile] = Field(
         None,
         description="Benchmark measurements; null until Sprint 1 benchmarking is run",
+    )
+    runtime: Optional[str] = Field(
+        None,
+        description="Inference runtime: 'ollama', 'fixture', or None (defaults to fixture)",
+    )
+    ollama_model: Optional[str] = Field(
+        None,
+        description="Ollama model tag (e.g. 'qwen2.5:7b'); required when runtime='ollama'",
     )
