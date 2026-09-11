@@ -11,7 +11,6 @@ import {
   executeVerticalSliceV0,
   TaskExecution,
   ModelRegistryEntry,
-  RouteCandidate,
   EvidenceObject,
   DocumentMetadata,
   VerticalSliceV0Response,
@@ -431,7 +430,7 @@ export default function WorkbenchPage() {
                           ID: {currentExecution.task_id.substring(0, 8)}
                         </span>
                         <span className="text-xs font-semibold text-slate-400">
-                          Type: <code className="text-cyan-400">{currentExecution.task_profile.task_type}</code>
+                          Type: <code className="text-cyan-400">{currentExecution.task_type}</code>
                         </span>
                       </div>
                       <span
@@ -483,7 +482,7 @@ export default function WorkbenchPage() {
                   </div>
 
                   {/* JUDGE-VISIBLE ROUTING RATIONALE PANEL */}
-                  {currentExecution.route_decision && (
+                  {currentExecution.routing_rationale && (
                     <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-cyan-500/80 rounded-2xl p-5 shadow-xl shadow-cyan-950/40 space-y-4 relative overflow-hidden">
                       <div className="absolute top-0 right-0 bg-cyan-500 text-slate-950 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-bl-xl shadow">
                         Master PRD §14 Explained
@@ -505,88 +504,32 @@ export default function WorkbenchPage() {
                       </div>
 
                       {/* Model Decision Metadata */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                         <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                           <div className="text-[10px] text-slate-500 uppercase font-mono">
                             Selected Model
                           </div>
                           <div className="font-bold text-slate-200 truncate">
-                            {currentExecution.route_decision.selected_model_name}
+                            {currentExecution.selected_model_name || 'N/A'}
                           </div>
                         </div>
                         <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                           <div className="text-[10px] text-slate-500 uppercase font-mono">
-                            Capabilities Matched
+                            Model ID
+                          </div>
+                          <div className="font-bold text-cyan-300 font-mono truncate">
+                            {currentExecution.selected_model_id || 'N/A'}
+                          </div>
+                        </div>
+                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                          <div className="text-[10px] text-slate-500 uppercase font-mono">
+                            Required Capabilities
                           </div>
                           <div className="font-bold text-emerald-400 truncate">
-                            {currentExecution.route_decision.matched_capabilities.join(', ')}
-                          </div>
-                        </div>
-                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                          <div className="text-[10px] text-slate-500 uppercase font-mono">
-                            Context Window
-                          </div>
-                          <div className="font-bold text-cyan-300 font-mono">
-                            {currentExecution.route_decision.context_window_size.toLocaleString()} tokens
-                          </div>
-                        </div>
-                        <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                          <div className="text-[10px] text-slate-500 uppercase font-mono">
-                            Est. Latency
-                          </div>
-                          <div className="font-bold text-amber-300 font-mono">
-                            {currentExecution.route_decision.estimated_latency_ms || 45} ms
+                            {(currentExecution.required_capabilities || []).join(', ') || 'N/A'}
                           </div>
                         </div>
                       </div>
-
-                      {/* Candidate Scoring Breakdown */}
-                      {currentExecution.route_decision.candidates && (
-                        <div className="space-y-2 pt-2 border-t border-slate-800">
-                          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            5-Step Candidate Scoring Matrix
-                          </div>
-                          <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden text-xs font-mono">
-                            <table className="w-full text-left border-collapse">
-                              <thead>
-                                <tr className="border-b border-slate-800 bg-slate-900/60 text-slate-400 text-[10px] uppercase">
-                                  <th className="p-2">Model</th>
-                                  <th className="p-2">VRAM Feasible?</th>
-                                  <th className="p-2">Latency Score</th>
-                                  <th className="p-2">VRAM Score</th>
-                                  <th className="p-2 text-right">Composite Score</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-800/60">
-                                {currentExecution.route_decision.candidates.map((cand: RouteCandidate) => (
-                                  <tr
-                                    key={cand.model_id}
-                                    className={
-                                      cand.model_id === currentExecution.route_decision?.selected_model
-                                        ? 'bg-cyan-950/40 text-cyan-200 font-bold'
-                                        : 'text-slate-400'
-                                    }
-                                  >
-                                    <td className="p-2">{cand.model_name}</td>
-                                    <td className="p-2">
-                                      {cand.feasible ? (
-                                        <span className="text-emerald-400">✓ Feasible</span>
-                                      ) : (
-                                        <span className="text-red-400">✗ Exceeds VRAM</span>
-                                      )}
-                                    </td>
-                                    <td className="p-2">{cand.latency_score.toFixed(2)}</td>
-                                    <td className="p-2">{cand.vram_score.toFixed(2)}</td>
-                                    <td className="p-2 text-right font-extrabold text-cyan-400">
-                                      {cand.composite_score.toFixed(3)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
 
@@ -1009,14 +952,14 @@ export default function WorkbenchPage() {
                   {tasks.map(t => (
                     <tr key={t.task_id} className="hover:bg-slate-900/80 transition">
                       <td className="p-3 font-bold text-cyan-400">{t.task_id.substring(0, 8)}</td>
-                      <td className="p-3 text-slate-200">{t.task_profile.task_type}</td>
+                      <td className="p-3 text-slate-200">{t.task_type}</td>
                       <td className="p-3">
                         <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
                           {t.current_state}
                         </span>
                       </td>
                       <td className="p-3 text-slate-300">
-                        {t.route_decision?.selected_model_name || 'N/A'}
+                        {t.selected_model_name || 'N/A'}
                       </td>
                       <td className="p-3 text-slate-500">{new Date(t.started_at).toLocaleTimeString()}</td>
                       <td className="p-3 text-right">

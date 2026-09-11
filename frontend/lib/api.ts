@@ -43,11 +43,16 @@ export interface RouteResponse {
 
 export interface TaskExecution {
   task_id: string;
+  task_type: string;
+  description: string;
   current_state: string;
   state_history: StateTransition[];
-  task_profile: TaskProfile;
-  route_decision?: RouteResponse;
+  // Routing — flat fields from backend
+  selected_model_id?: string;
+  selected_model_name?: string;
   routing_rationale?: string;
+  required_capabilities?: string[];
+  // Execution
   model_response?: string;
   started_at: string;
   completed_at?: string;
@@ -374,7 +379,7 @@ export async function runFlagshipDemo(userRole: string = 'ENGINEER'): Promise<Fl
 }
 
 export async function approveTask(taskId: string, userId: string, userRole: string, reason: string = ''): Promise<ApprovalDecision> {
-  const res = await fetch(`${API_BASE}/v1/approval/${taskId}/decide`, {
+  const res = await fetch(`${API_BASE}/v1/tasks/${taskId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
