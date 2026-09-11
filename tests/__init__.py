@@ -1,1 +1,1 @@
-"""SAFIRE integration tests."""
+"""Tests package."""

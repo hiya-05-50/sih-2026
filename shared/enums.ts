@@ -72,3 +72,56 @@ export const EvidenceType = {
 export type EvidenceType =
   (typeof EvidenceType)[keyof typeof EvidenceType];
 
+// ---------------------------------------------------------------------------
+// Sprint 5 — Sovereignty + Security + SIAB
+// ---------------------------------------------------------------------------
+
+export const NetworkZone = {
+  LOOPBACK: "LOOPBACK",
+  TRUSTED_ONPREM: "TRUSTED_ONPREM",
+  EXTERNAL: "EXTERNAL",
+} as const;
+export type NetworkZone = (typeof NetworkZone)[keyof typeof NetworkZone];
+
+export const SovereigntyEventType = {
+  NETWORK_BLOCKED: "NETWORK_BLOCKED",
+  NETWORK_ALLOWED: "NETWORK_ALLOWED",
+  DNS_QUERY: "DNS_QUERY",
+  DNS_BLOCKED: "DNS_BLOCKED",
+  ZONE_VIOLATION: "ZONE_VIOLATION",
+  TOOL_BLOCKED: "TOOL_BLOCKED",
+  TOOL_ALLOWED: "TOOL_ALLOWED",
+  PROMPT_INJECTION_DETECTED: "PROMPT_INJECTION_DETECTED",
+  SANDBOX_ESCAPE_ATTEMPT: "SANDBOX_ESCAPE_ATTEMPT",
+  SELF_TEST_RESULT: "SELF_TEST_RESULT",
+  READINESS_CHANGE: "READINESS_CHANGE",
+  STARTUP: "STARTUP",
+  SHUTDOWN: "SHUTDOWN",
+} as const;
+export type SovereigntyEventType =
+  (typeof SovereigntyEventType)[keyof typeof SovereigntyEventType];
+
+export const SovereigntyEventSeverity = {
+  INFO: "INFO",
+  WARNING: "WARNING",
+  CRITICAL: "CRITICAL",
+} as const;
+export type SovereigntyEventSeverity =
+  (typeof SovereigntyEventSeverity)[keyof typeof SovereigntyEventSeverity];
+
+export const TrustBoundary = {
+  SYSTEM: "SYSTEM",
+  USER: "USER",
+  TOOL_OUTPUT: "TOOL_OUTPUT",
+  DOCUMENT_CONTENT: "DOCUMENT_CONTENT",
+  MODEL_RESPONSE: "MODEL_RESPONSE",
+} as const;
+export type TrustBoundary =
+  (typeof TrustBoundary)[keyof typeof TrustBoundary];
+
+export const SIABConfig = {
+  BARE_MODEL: "BARE_MODEL",
+  AGENT_NO_FABRIC: "AGENT_NO_FABRIC",
+  FULL_SAFIRE: "FULL_SAFIRE",
+} as const;
+export type SIABConfig = (typeof SIABConfig)[keyof typeof SIABConfig];
