@@ -1,0 +1,1 @@
+"""SAFIRE model adapters."""
