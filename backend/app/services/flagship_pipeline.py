@@ -99,7 +99,7 @@ class FlagshipPipeline:
             logger.info("Flagship [%s] UPLOAD: doc=%s", task_id, document_id)
 
             # --- STAGE 2: OCR/VISION ---
-            pipeline_states.append("OCR_VISION")
+            result.pipeline_states.append("OCR_VISION")
             parse_response = await self._parser.parse_document(
                 document_id=document_id,
                 content=document_content,
@@ -114,11 +114,11 @@ class FlagshipPipeline:
             )
 
             # --- STAGE 3: EVIDENCE ---
-            pipeline_states.append("EVIDENCE")
+            result.pipeline_states.append("EVIDENCE")
             # Evidence objects are already created by parser
 
             # --- STAGE 4: RETRIEVAL ---
-            pipeline_states.append("RETRIEVAL")
+            result.pipeline_states.append("RETRIEVAL")
             self._retrieval.clear()
             self._retrieval.ingest_batch(evidence_objects)
             retrieved = self._retrieval.search_evidence("inspection compliance", top_k=5)
@@ -128,13 +128,13 @@ class FlagshipPipeline:
             )
 
             # --- STAGE 5: REASONING ---
-            pipeline_states.append("REASONING")
+            result.pipeline_states.append("REASONING")
             # In Sprint 4, reasoning produces structured extraction
             # that feeds deterministic compute. The fixture/real model
             # was already used in S3 for the agent loop.
 
             # --- STAGE 6: DETERMINISTIC COMPUTE ---
-            pipeline_states.append("DETERMINISTIC_COMPUTE")
+            result.pipeline_states.append("DETERMINISTIC_COMPUTE")
             calc_requests = self._compute.build_inspection_calculations(evidence_objects)
             calculation_results = self._compute.execute_batch(calc_requests)
             result.calculations = calculation_results
@@ -146,7 +146,7 @@ class FlagshipPipeline:
             )
 
             # --- STAGE 7: VERIFICATION ---
-            pipeline_states.append("VERIFICATION")
+            result.pipeline_states.append("VERIFICATION")
             claimed_ids = [ev.evidence_id for ev in evidence_objects]
             schema_data = {
                 "task_id": task_id,
@@ -175,7 +175,7 @@ class FlagshipPipeline:
             result.verification_report = verification_report
 
             # --- STAGE 8: RISK CLASSIFICATION ---
-            pipeline_states.append("RISK")
+            result.pipeline_states.append("RISK")
             # Determine risk based on calculation results
             any_failures = any(c.status == "FAIL" for c in calculation_results)
             if any_failures:
@@ -190,7 +190,7 @@ class FlagshipPipeline:
             logger.info("Flagship [%s] RISK: %s", task_id, risk_level)
 
             # --- STAGE 9: APPROVAL ---
-            pipeline_states.append("APPROVAL")
+            result.pipeline_states.append("APPROVAL")
             approval: Optional[ApprovalDecision] = None
             if risk_level in (RiskLevel.AMBER, RiskLevel.RED):
                 approval = self._approval.request_approval(task_id, risk_level)
@@ -203,7 +203,7 @@ class FlagshipPipeline:
                 logger.info("Flagship [%s] APPROVAL: GREEN — no approval needed", task_id)
 
             # --- STAGE 10: ARTIFACT GENERATION ---
-            pipeline_states.append("ARTIFACT")
+            result.pipeline_states.append("ARTIFACT")
             # Check delivery permission
             delivery_allowed, delivery_reason = self._approval.check_delivery_allowed(
                 task_id, risk_level
@@ -234,7 +234,7 @@ class FlagshipPipeline:
                 )
 
         except Exception as exc:
-            pipeline_states.append("FAILED")
+            result.pipeline_states.append("FAILED")
             logger.error("Flagship [%s] FAILED: %s", task_id, exc)
             raise
 
@@ -244,7 +244,7 @@ class FlagshipPipeline:
 
         logger.info(
             "Flagship [%s] COMPLETE: %d stages in %.1fms",
-            task_id, len(pipeline_states), result.pipeline_duration_ms,
+            task_id, len(result.pipeline_states), result.pipeline_duration_ms,
         )
         return result
 

@@ -17,23 +17,24 @@ from app.services.seed import seed_models
 from shared.enums import RiskLevel
 
 
-def _run(coro):
-    """Helper to run async coroutines in sync tests."""
-    return asyncio.get_event_loop().run_until_complete(coro)
-
-
-@pytest.fixture
-def pipeline():
+def _make_pipeline():
+    """Create a fully wired pipeline (sync helper)."""
     registry = ModelRegistry()
-    _run(seed_models(registry))
+    asyncio.run(seed_models(registry))
     adapter_manager = AdapterManager(registry)
     approval_service = ApprovalService()
     return FlagshipPipeline(adapter_manager, approval_service)
 
 
-def test_full_flagship_produces_artifacts(pipeline):
+def _execute(pipeline):
+    """Run the flagship pipeline (sync helper)."""
+    return asyncio.run(pipeline.execute())
+
+
+def test_full_flagship_produces_artifacts():
     """The full flagship task produces Decision_Note.docx + Inspection_Data.xlsx + Evidence_Report.pdf."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
 
     assert result.task_id is not None
     assert result.evidence_count > 0
@@ -49,9 +50,10 @@ def test_full_flagship_produces_artifacts(pipeline):
         assert "Evidence_Report.pdf" in filenames
 
 
-def test_pipeline_tracks_all_stages(pipeline):
+def test_pipeline_tracks_all_stages():
     """Pipeline states should include all 10 stages."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
 
     expected_stages = [
         "UPLOAD", "OCR_VISION", "EVIDENCE", "RETRIEVAL",
@@ -62,9 +64,10 @@ def test_pipeline_tracks_all_stages(pipeline):
         assert stage in result.pipeline_states, f"Missing stage: {stage}"
 
 
-def test_calculations_have_provenance(pipeline):
+def test_calculations_have_provenance():
     """Every calculation must have evidence references."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
 
     for calc in result.calculations:
         assert calc.evidence_reference is not None
@@ -72,31 +75,35 @@ def test_calculations_have_provenance(pipeline):
         assert calc.results_match is True  # Deterministic → always matches
 
 
-def test_verification_report_has_8_checks(pipeline):
+def test_verification_report_has_8_checks():
     """Verification report must contain all 8 checks."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
 
     assert result.verification_report is not None
     assert len(result.verification_report.checks) == 8
 
 
-def test_pipeline_duration_tracked(pipeline):
+def test_pipeline_duration_tracked():
     """Pipeline duration should be recorded."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
     assert result.pipeline_duration_ms > 0
 
 
-def test_execution_retrievable(pipeline):
+def test_execution_retrievable():
     """Executed pipelines should be retrievable by task ID."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
     retrieved = pipeline.get_execution(result.task_id)
     assert retrieved is not None
     assert retrieved.task_id == result.task_id
 
 
-def test_artifact_evidence_traceability(pipeline):
+def test_artifact_evidence_traceability():
     """Artifacts should reference evidence IDs for traceability."""
-    result = _run(pipeline.execute())
+    pipeline = _make_pipeline()
+    result = _execute(pipeline)
 
     if result.artifact_manifest:
         for artifact in result.artifact_manifest.artifacts:
