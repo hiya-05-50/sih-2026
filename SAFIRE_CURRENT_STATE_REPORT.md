@@ -74,7 +74,32 @@ The system is **FULLY PREPARED** for final SIH jury evaluations and live present
 *   **Multi-Perspective Evaluation**: The 4 flagship scenarios (Flagship Multi-Doc, Security Adversarial Containment, Data Conflict Escalation, and Industrial Coding) can be executed individually or as part of the unified 21-step sequence.
 *   **Traceability Matrix**: Complete requirement-to-code traceability is inspectable via both web API (`/v1/traceability/report`) and UI.
 
-## 7. Recommended Next Steps for Target Environment
+## 7. Comprehensive Repository Audit Summary (§15, §24, 21-Step Demo)
+A full line-by-line audit of the entire repository was conducted against [SAFIRE_Seven_Sprint_Execution_Plan(1).md](file:///c:/Users/Neevan/Documents/SIH2026/sih-2026/SAFIRE_Seven_Sprint_Execution_Plan%281%29.md) and frozen specifications. Full details are recorded in [SAFIRE_REPO_AUDIT.md](file:///c:/Users/Neevan/Documents/SIH2026/sih-2026/SAFIRE_REPO_AUDIT.md).
+
+### Overall Scorecard: 76 / 88 items (86% compliance)
+*   **Sprint 0 Contracts**: 6/9 (67%)
+*   **Sprint 1**: 6/7 (86%)
+*   **Sprint 2**: 6/7 (86%)
+*   **Sprint 3**: 7/9 (78%)
+*   **Sprint 4**: 8/8 (100%)
+*   **Sprint 5**: 13/13 (100%)
+*   **Sprint 6**: 4/4 (100%)
+*   **Sprint 7**: 4/4 (100%)
+*   **§24 Final Acceptance Checklist**: 22/27 (81%)
+
+### Priority Remediation Items
+1.  🔴 **Evidence Object Schema**: Add `section`, `extraction_method`, `access_level` to `backend/app/schemas/evidence.py`.
+2.  🔴 **TaskProfile Capabilities**: Add `required_pipeline_capabilities: list[PipelineCapability]` to `backend/app/schemas/task.py`.
+3.  🔴 **PipelineCapability Usage**: Wire `PipelineCapability` into task classification & routing.
+4.  🔴 **Hybrid Retrieval Upgrade**: Supplement keyword indexing with BM25 / dense embedding vector search in `EvidenceRetrievalIndex`.
+5.  🔴 **Frontend/Backend Enum Parity**: Sync missing enums (`VerificationType`, `ApprovalStatus`, `ModelCapability`, `PipelineCapability`) in `shared/enums.ts`.
+6.  🟡 **Tool Registry**: Add `read_document` tool to `backend/app/services/tools/implementations.py`.
+7.  🟡 **Agent Execution Bounds**: Add `MAX_ESCALATIONS` and `MAX_CONTEXT_GROWTH` to `AgentExecutionBounds`.
+8.  🟡 **Demo Test Fixtures**: Bundle sample PDF scans and P&ID/handwriting inspection reports in `demo_data/`.
+
+## 8. Recommended Next Steps for Target Environment
 1.  **Host-Level Isolation on Demo VM**: Configure host firewall rules (Windows Filtering Platform / iptables) blocking WAN egress on the demo laptop to flip the Sovereignty status indicator to green `READY`.
 2.  **Target Hardware Inference (RTX 4060)**: Attach local Ollama/vLLM endpoints running quantized model weights (e.g., Qwen2.5-Coder-7B and DeepSeek-R1-Distill-7B).
 3.  **SIAB Benchmark Baseline Run**: Execute the SIAB harness against the loaded weights to capture real hardware latency, token throughput, and task completion scores.
+4.  **Execute High-Priority Gap Remediations**: Patch the 5 contract schema & enum discrepancies identified in the audit before final presentation freeze.
