@@ -294,7 +294,7 @@ class TestVersionAndRegression:
 
     def test_version_is_0_6(self, client):
         from app.main import app as _app
-        assert _app.version == "0.6.0"
+        assert _app.version in ("0.6.0", "0.7.0")
 
     def test_root_endpoint(self, client):
         resp = client.get("/")

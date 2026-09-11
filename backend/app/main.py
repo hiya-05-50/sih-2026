@@ -33,6 +33,11 @@ from app.api import sovereignty as sovereignty_api
 from app.api import siab as siab_api
 # Sprint 6 API modules
 from app.api import demo as demo_api
+# Sprint 7 services and API modules
+from app.services.demo_sequence import DemoSequenceRunner
+from app.services.traceability import TraceabilityService
+from app.api import demo_sequence as demo_sequence_api
+from app.api import traceability as traceability_api
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,15 @@ flagship_pipeline = FlagshipPipeline(
     model_router=model_router,
 )
 
+# Sprint 7 services
+demo_sequence_runner = DemoSequenceRunner(
+    flagship_pipeline=flagship_pipeline,
+    audit_store=audit_store,
+    sovereignty_monitor=sovereignty_monitor,
+    siab_runner=siab_runner,
+)
+traceability_service = TraceabilityService()
+
 
 # ---------------------------------------------------------------------------
 # Lifespan (startup / shutdown)
@@ -87,7 +101,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.6.0",
+    version="0.7.0",
     lifespan=lifespan,
 )
 
@@ -121,6 +135,9 @@ sovereignty_api.configure(sovereignty_monitor)
 siab_api.configure(siab_runner)
 # Sprint 6 wiring
 demo_api.configure(flagship_pipeline, audit_store, sovereignty_monitor)
+# Sprint 7 wiring
+demo_sequence_api.configure(demo_sequence_runner)
+traceability_api.configure(traceability_service)
 
 # Include API routers
 app.include_router(models_api.router)
@@ -137,6 +154,9 @@ app.include_router(sovereignty_api.router)
 app.include_router(siab_api.router)
 # Sprint 6 routers
 app.include_router(demo_api.router)
+# Sprint 7 routers
+app.include_router(demo_sequence_api.router)
+app.include_router(traceability_api.router)
 
 
 # ---------------------------------------------------------------------------

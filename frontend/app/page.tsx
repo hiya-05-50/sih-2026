@@ -257,6 +257,24 @@ export default function WorkbenchPage() {
           >
             📋 Audit ({tasks.length})
           </button>
+          <a
+            href="/sovereignty"
+            className="px-4 py-2 text-sm font-semibold rounded-lg transition-all text-emerald-400 hover:text-emerald-200 hover:bg-slate-900 flex items-center space-x-1.5"
+          >
+            <span>🛡️ Sovereignty</span>
+            <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded font-mono">
+              Live
+            </span>
+          </a>
+          <a
+            href="/demo"
+            className="px-4 py-2 text-sm font-semibold rounded-lg transition-all text-amber-400 hover:text-amber-200 hover:bg-slate-900 flex items-center space-x-1.5"
+          >
+            <span>🎯 Demo</span>
+            <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-1.5 py-0.5 rounded font-mono">
+              21-Step
+            </span>
+          </a>
         </nav>
 
         {/* System Hardware Status Badge */}
