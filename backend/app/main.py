@@ -13,11 +13,16 @@ from app.services.benchmark import BenchmarkRunner
 from app.services.seed import seed_models
 from app.services.tools.registry import ToolRegistry
 from app.services.tools.implementations import register_all_tools
+from app.services.approval import ApprovalService
+from app.services.flagship_pipeline import FlagshipPipeline
 from app.api import models as models_api
 from app.api import routing as routing_api
 from app.api import tasks as tasks_api
 from app.api import benchmark as benchmark_api
 from app.api import documents as documents_api
+from app.api import approval as approval_api
+from app.api import artifacts as artifacts_api
+from app.api import flagship as flagship_api
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +40,10 @@ benchmark_runner = BenchmarkRunner(registry, adapter_manager)
 tool_registry = ToolRegistry()
 register_all_tools(tool_registry)
 
+# Sprint 4 services
+approval_service = ApprovalService()
+flagship_pipeline = FlagshipPipeline(adapter_manager, approval_service)
+
 
 # ---------------------------------------------------------------------------
 # Lifespan (startup / shutdown)
@@ -51,7 +60,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -76,6 +85,9 @@ routing_api.configure(model_router)
 tasks_api.configure(lifecycle_manager)
 benchmark_api.configure(benchmark_runner)
 documents_api.configure(adapter_manager, tool_registry)
+approval_api.configure(approval_service)
+artifacts_api.configure(flagship_pipeline)
+flagship_api.configure(flagship_pipeline)
 
 # Include API routers
 app.include_router(models_api.router)
@@ -83,6 +95,9 @@ app.include_router(routing_api.router)
 app.include_router(tasks_api.router)
 app.include_router(benchmark_api.router)
 app.include_router(documents_api.router)
+app.include_router(approval_api.router)
+app.include_router(artifacts_api.router)
+app.include_router(flagship_api.router)
 
 
 # ---------------------------------------------------------------------------

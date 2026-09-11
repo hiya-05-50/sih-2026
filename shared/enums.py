@@ -86,3 +86,20 @@ class EvidenceType(StrEnum):
     IMAGE = "IMAGE"
     KEY_VALUE = "KEY_VALUE"
 
+
+class VerificationType(StrEnum):
+    EVIDENCE = "EVIDENCE"
+    RETRIEVAL = "RETRIEVAL"
+    CALCULATION = "CALCULATION"
+    RULE = "RULE"
+    SCHEMA = "SCHEMA"
+    ARTIFACT = "ARTIFACT"
+    PERMISSION = "PERMISSION"
+    HUMAN = "HUMAN"
+
+
+class ApprovalStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
